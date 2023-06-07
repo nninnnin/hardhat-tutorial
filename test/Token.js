@@ -1,8 +1,10 @@
 const { expect } = require("chai");
+const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
 
 describe("Token contract", function () {
-  it("Deployment should assign the total supply of tokens to the owner", async function () {
-    const [owner] = await ethers.getSigners();
+  async function deployTokenFixture() {
+    const TokenFactory = await ethers.getContractFactory("Token");
+    const [owner, addr1, addr2] = await ethers.getSigners();
 
     /**
 
@@ -15,29 +17,33 @@ describe("Token contract", function () {
 
      */
 
-    const Token = await ethers.getContractFactory("Token"); // "Contract Factory"
-    const hardhatToken = await Token.deploy(); // deployed "Contract"
-    const ownerBalance = await hardhatToken.balanceOf(owner.address); // Once contract is deployed, we can call methods from it
+    const hardhatToken = await TokenFactory.deploy();
 
+    await hardhatToken.deployed();
+
+    return { TokenFactory, hardhatToken, owner, addr1, addr2 };
+  }
+
+  it("Should assign the total supply of tokens to the owner", async function () {
+    const { hardhatToken, owner } = await loadFixture(deployTokenFixture);
+
+    const ownerBalance = await hardhatToken.balanceOf(owner.address);
     expect(await hardhatToken.totalSupply()).to.equal(ownerBalance);
   });
 
   it("Should transfer tokens between accounts", async function () {
-    const [owner, addr1, addr2] = await ethers.getSigners();
-
-    const Token = await ethers.getContractFactory("Token");
-
-    const hardhatToken = await Token.deploy();
+    const { hardhatToken, owner, addr1, addr2 } = await loadFixture(
+      deployTokenFixture
+    );
 
     // Transfer 50 tokens from owner to addr1
     await hardhatToken.transfer(addr1.address, 50);
     expect(await hardhatToken.balanceOf(addr1.address)).to.equal(50);
+    expect(await hardhatToken.balanceOf(owner.address)).to.equal(150);
 
     // Transfer 50 tokens from addr1 to addr2
     await hardhatToken.connect(addr1).transfer(addr2.address, 50);
     expect(await hardhatToken.balanceOf(addr2.address)).to.equal(50);
     expect(await hardhatToken.balanceOf(addr1.address)).to.equal(0);
-
-    console.log(await hardhatToken.balanceOf(owner.address));
   });
 });
